@@ -1,0 +1,2 @@
+
+image:doc/example.gif[]
