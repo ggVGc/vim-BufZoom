@@ -1,12 +1,31 @@
+fun! <SID>doClose()
+  let __bufsearch_goto_buf=b:__bufsearch_bufid
+  close
+  exec "drop ".bufname(__bufsearch_goto_buf)
+endfun
+
+fun! <SID>quitZoomBuf()
+  call <SID>doClose()
+  call setpos('.', b:__bufsearch_start_pos)
+  match none
+endfun
+
+fun! <SID>acceptLine()
+  let g:__bufzoom_linenum = matchstr(getline("."), "^\\s*\\d\\+")+1
+  call <SID>doClose()
+  silent exe g:__bufzoom_linenum
+  silent match none
+endfun
 
 fun! BufZoom(searchString)
-  let b:__bufsearch_start_pos = getpos('.')
-  let bufName="[Zoom]".fnamemodify(bufname('%'), ':t')." ".bufnr('%')
-  "redir @"
+  let bufid=bufnr('%')
   let n=&number
   let ft=&ft
   %y
+  let b:__bufsearch_start_pos = getpos('.')
+  let bufName="[Zoom]".fnamemodify(bufname('%'), ':t')." ".bufid
   exec "tabnew ".bufName
+  let b:__bufsearch_bufid=bufid
   exec "set ft=".l:ft
   set bt=nofile
   set modifiable
@@ -25,9 +44,7 @@ fun! BufZoom(searchString)
   set nobuflisted
   "exec "file '".bufName."'"
   exec 'match ColorColumn /\c'.a:searchString.'/'
-  "let quitCmd = ":b #<cr>:bdelete! ".bufName."<cr>:close<cr>:call setpos('.', b:__bufsearch_start_pos)<cr>:match none<cr>"
-  let quitCmd = ":close<cr>:call setpos('.', b:__bufsearch_start_pos)<cr>:match none<cr>"
-  map <buffer> <cr> :let g:__bufzoom_linenum = matchstr(getline("."), "^\\s*\\d\\+")+1<cr>:close<cr>:silent exe g:__bufzoom_linenum<cr>:silent match none<cr>
-  exec "map <buffer> <c-c> ".quitCmd
-  exec "map <buffer> q ".quitCmd
+  map <buffer> <cr> :call <SID>acceptLine()<cr>
+  map <buffer> <c-c> :call <SID>quitZoomBuf()<cr>
+  map <buffer> q :call <SID>quitZoomBuf()<cr>
 endf
