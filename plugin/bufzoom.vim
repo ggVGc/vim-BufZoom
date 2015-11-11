@@ -1,20 +1,25 @@
 fun! <SID>doClose()
   let __bufsearch_goto_buf=b:__bufsearch_bufid
+  let id = bufnr('%')
   close
-  exec "drop ".bufname(__bufsearch_goto_buf)
+  let name = fnameescape(bufname(__bufsearch_goto_buf))
+  exec "drop ".name
+  return id
 endfun
 
 fun! <SID>quitZoomBuf()
-  call <SID>doClose()
+  let id= <SID>doClose()
   call setpos('.', b:__bufsearch_start_pos)
   match none
+  exec "bdelete! ".id
 endfun
 
 fun! <SID>acceptLine()
-  let g:__bufzoom_linenum = matchstr(getline("."), "^\\s*\\d\\+")+1
-  call <SID>doClose()
-  silent exe g:__bufzoom_linenum
+  let __bufzoom_linenum = matchstr(getline("."), "^\\s*\\d\\+")+1
+  let id= <SID>doClose()
+  silent exe __bufzoom_linenum
   silent match none
+  exec "bdelete! ".id
 endfun
 
 fun! BufZoom(searchString)
