@@ -45,6 +45,8 @@ fun! BufZoom(searchString)
   silent! %s/^$/-----------------------------------------------------------------------------------------------------------------------------------------------------------/
   normal ggdd
   "normal gg2dd
+  %s/\s*$//g
+  nohlsearch
   set nomodifiable
   set nobuflisted
   "exec "file '".bufName."'"
@@ -53,3 +55,5 @@ fun! BufZoom(searchString)
   map <buffer> <c-c> :call <SID>quitZoomBuf()<cr>
   map <buffer> q :call <SID>quitZoomBuf()<cr>
 endf
+
+command -nargs=1 BufZoom silent call BufZoom("<args>")
