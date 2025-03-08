@@ -1,6 +1,11 @@
 
 "TODO:
-" - Reuse same buffer (option)
+" - Content stack instead of one level. Map ctrl-o/u.
+" - Reuse original buffer instead of opening tab (option)
+
+
+"Readme (TODO):
+"- Calling BufZoom in a zoomed buffer reuses the same space.
 
 
 fun! <SID>doClose()
@@ -21,19 +26,18 @@ endfun
 fun! <SID>quitZoomBuf()
   let id= <SID>doClose()
   call setpos('.', b:__bufzoom_start_pos)
-  match none
-  exec "bdelete! ".id
+  "exec "bdelete! ".id
 endfun
 
 fun! <SID>acceptLine()
   let __bufzoom_linenum = matchstr(getline("."), "^\\s*\\d\\+")+1
   let id= <SID>doClose()
   silent exe __bufzoom_linenum
-  silent match none
-  exec "bdelete! ".id
+  "exec "bdelete! ".id
 endfun
 
 fun! Zoom(searchString)
+  set modifiable
   if !exists('b:__bufzoom_nested')
     silent! %s/^/\=printf('%-7d', line('.')-1)
   endif
@@ -46,11 +50,10 @@ fun! Zoom(searchString)
   silent! %s/^$/-----------------------------------------------------------------------------------------------------------------------------------------------------------/
   normal ggdd
   silent! %s/\s*$//g
-  "nohlsearch
-  "exec 'match ColorColumn /\c'.a:searchString.'/'
 endf
 
 fun! <SID>update(query)
+  set modifiable
   %d
   call setline('.', b:__bufzoom_content)
   " Add extra lines to prevent cutoff of results at end of file
@@ -59,37 +62,52 @@ fun! <SID>update(query)
   call append(line('$'), "")
   if a:query != ''
     silent call Zoom(a:query)
+    normal gg
+  else
+    call setpos('.', b:__bufzoom_position)
   endif
-  normal gg
   echo "Zoom: " . a:query
   let @/=a:query
+  if a:query != ''
+    silent! normal n
+  end
   redraw!
 endfun
 
 
+fun! <SID>add_mappings()
+  noremap <buffer> <cr> :call <SID>acceptLine()<cr>
+  noremap <buffer> <c-c> :call <SID>quitZoomBuf()<cr>
+  noremap <buffer> q :call <SID>quitZoomBuf()<cr>
+  noremap <buffer> u :call <SID>update('')<cr>
+  noremap <buffer> # *:call BufZoom(@/)<cr><cr>
+endfun
+
 function! BufZoom(...)
+  let position = getpos('.')
+  let b:__bufzoom_start_pos = position
   let content = getline(1, '$')
-  let b:__bufzoom_start_pos = getpos('.')
   let bufid=bufnr('%')
   let bufName="[Zoom]".fnamemodify(bufname('%'), ':t')." ".bufid
   let ft=&ft
 
   if !exists('b:__bufzoom_bufid')
     exec "tabnew ".bufName
+    set modifiable
     let b:__bufzoom_bufid=bufid
     let b:__bufzoom_original_search = @/
-    map <buffer> <cr> :call <SID>acceptLine()<cr>
-    map <buffer> <c-c> :call <SID>quitZoomBuf()<cr>
-    map <buffer> q :call <SID>quitZoomBuf()<cr>
-    map <buffer> u :call <SID>update('')<cr>
+    setlocal bufhidden=delete
+
+    call <SID>add_mappings()
 
     exec "set ft=".l:ft
     set bt=nofile
-    set modifiable
   else
+    set modifiable
     let b:__bufzoom_nested = 1
   endif
 
+  let b:__bufzoom_position = position
   let b:__bufzoom_content = content
   call setline('.', content)
 
@@ -97,15 +115,21 @@ function! BufZoom(...)
 
   let c = ''
   while 1
+    set modifiable
     call <SID>update(query)
     let keyCode = getchar()
     let c = nr2char(keyCode)
 
     if c == "\<esc>"
-      call <SID>quitZoomBuf()
+      if !exists('b:__bufzoom_nested')
+        call <SID>quitZoomBuf()
+      else
+        set nomodifiable
+      end
       break
 
     elseif c == "\<cr>"
+      set nomodifiable
       break
 
     elseif keyCode == 23 "CTRL-W
