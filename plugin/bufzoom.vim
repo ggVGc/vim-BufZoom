@@ -1,15 +1,15 @@
 fun! <SID>doClose()
-  let __bufsearch_goto_buf=b:__bufsearch_bufid
+  let __bufzoom_goto_buf=b:__bufzoom_bufid
   let id = bufnr('%')
   close
-  let name = fnameescape(bufname(__bufsearch_goto_buf))
+  let name = fnameescape(bufname(__bufzoom_goto_buf))
   exec "drop ".name
   return id
 endfun
 
 fun! <SID>quitZoomBuf()
   let id= <SID>doClose()
-  call setpos('.', b:__bufsearch_start_pos)
+  call setpos('.', b:__bufzoom_start_pos)
   match none
   exec "bdelete! ".id
 endfun
@@ -22,38 +22,88 @@ fun! <SID>acceptLine()
   exec "bdelete! ".id
 endfun
 
-fun! BufZoom(searchString)
-  let bufid=bufnr('%')
-  let n=&number
-  let ft=&ft
-  %y
-  let b:__bufsearch_start_pos = getpos('.')
-  let bufName="[Zoom]".fnamemodify(bufname('%'), ':t')." ".bufid
-  exec "tabnew ".bufName
-  let b:__bufsearch_bufid=bufid
-  exec "set ft=".l:ft
-  set bt=nofile
-  set modifiable
-  normal! ggVgp
-  %s/^/\=printf('%-7d', line('.')-1)
+fun! Zoom(searchString)
+  if !exists('b:__bufzoom_nested')
+    silent! %s/^/\=printf('%-7d', line('.')-1)
+  endif
   silent! exec 'g/'.a:searchString.'/ --,++ s/^/__buf_search_uid/'
   silent! v/__buf_search_uid.*/s/.*//
   silent! g/^$/,/./-j
-  ?.
-  normal jdG
+  silent! ?.
+  silent! normal jdG
   silent! %s/\(__buf_search_uid\)*//
   silent! %s/^$/-----------------------------------------------------------------------------------------------------------------------------------------------------------/
   normal ggdd
-  "normal gg2dd
-  %s/\s*$//g
-  nohlsearch
-  set nomodifiable
-  set nobuflisted
-  "exec "file '".bufName."'"
-  exec 'match ColorColumn /\c'.a:searchString.'/'
-  map <buffer> <cr> :call <SID>acceptLine()<cr>
-  map <buffer> <c-c> :call <SID>quitZoomBuf()<cr>
-  map <buffer> q :call <SID>quitZoomBuf()<cr>
+  silent! %s/\s*$//g
+  "nohlsearch
+  "exec 'match ColorColumn /\c'.a:searchString.'/'
 endf
 
-command -nargs=1 BufZoom silent call BufZoom("<args>")
+fun! <SID>update(query)
+  %d
+  call setline('.', b:__bufzoom_content)
+  if a:query != ''
+    silent call Zoom(a:query)
+  endif
+  normal gg
+  echo "Zoom: " . a:query
+  let @/=a:query
+  redraw!
+endfun
+
+
+function! BufZoom()
+  let content = getline(1, '$')
+  let b:__bufzoom_start_pos = getpos('.')
+  let bufid=bufnr('%')
+  let bufName="[Zoom]".fnamemodify(bufname('%'), ':t')." ".bufid
+  let ft=&ft
+
+  if !exists('b:__bufzoom_bufid')
+    exec "tabnew ".bufName
+    let b:__bufzoom_bufid=bufid
+    map <buffer> <cr> :call <SID>acceptLine()<cr>
+    map <buffer> <c-c> :call <SID>quitZoomBuf()<cr>
+    map <buffer> q :call <SID>quitZoomBuf()<cr>
+    map <buffer> u :call <SID>update('')<cr>
+
+    exec "set ft=".l:ft
+    set bt=nofile
+    set modifiable
+  else
+    let b:__bufzoom_nested = 1
+  endif
+
+  let b:__bufzoom_content = content
+  call setline('.', content)
+
+  let query = ''
+
+  let c = ''
+  while 1
+    call <SID>update(query)
+    let keyCode = getchar()
+    let c = nr2char(keyCode)
+
+    if c == "\<esc>"
+      call <SID>quitZoomBuf()
+      break
+
+    elseif c == "\<cr>"
+      break
+
+    elseif keyCode == 23 "CTRL-W
+      let query = ''
+
+    elseif keyCode is# "\<BS>"
+      if query != ''
+        let query = query[:-2]
+      endif
+    else
+      let query .= c
+    endif
+  endwhile
+  redraw!
+endfunction
+
+command! BufZoom call BufZoom()
