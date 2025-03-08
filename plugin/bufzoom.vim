@@ -1,9 +1,20 @@
+
+"TODO:
+" - Reuse same buffer (option)
+
+
 fun! <SID>doClose()
+  if exists('b:__bufzoom_bufid')
+    let @/ = b:__bufzoom_original_search
+  end
+
   let __bufzoom_goto_buf=b:__bufzoom_bufid
   let id = bufnr('%')
   close
   let name = fnameescape(bufname(__bufzoom_goto_buf))
   exec "drop ".name
+
+
   return id
 endfun
 
@@ -42,6 +53,10 @@ endf
 fun! <SID>update(query)
   %d
   call setline('.', b:__bufzoom_content)
+  " Add extra lines to prevent cutoff of results at end of file
+  call append(line('$'), "")
+  call append(line('$'), "")
+  call append(line('$'), "")
   if a:query != ''
     silent call Zoom(a:query)
   endif
@@ -52,7 +67,7 @@ fun! <SID>update(query)
 endfun
 
 
-function! BufZoom()
+function! BufZoom(...)
   let content = getline(1, '$')
   let b:__bufzoom_start_pos = getpos('.')
   let bufid=bufnr('%')
@@ -62,6 +77,7 @@ function! BufZoom()
   if !exists('b:__bufzoom_bufid')
     exec "tabnew ".bufName
     let b:__bufzoom_bufid=bufid
+    let b:__bufzoom_original_search = @/
     map <buffer> <cr> :call <SID>acceptLine()<cr>
     map <buffer> <c-c> :call <SID>quitZoomBuf()<cr>
     map <buffer> q :call <SID>quitZoomBuf()<cr>
@@ -77,7 +93,7 @@ function! BufZoom()
   let b:__bufzoom_content = content
   call setline('.', content)
 
-  let query = ''
+  let query = get(a:, 1, '')
 
   let c = ''
   while 1
@@ -106,4 +122,4 @@ function! BufZoom()
   redraw!
 endfunction
 
-command! BufZoom call BufZoom()
+command -nargs=? BufZoom call BufZoom("<args>")
