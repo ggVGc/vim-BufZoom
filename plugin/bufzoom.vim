@@ -22,6 +22,7 @@ fun! <SID>doClose()
   exec "drop ".name
 
   set modifiable
+  let &modifiable = b:__bufzoom_original_modifiable
   match none
   return id
 endfun
@@ -102,6 +103,7 @@ endfun
 function! BufZoom(...)
   let position = getpos('.')
   let b:__bufzoom_start_pos = position
+  let b:__bufzoom_original_modifiable = &modifiable
   let content = getline(1, '$')
   let bufid=bufnr('%')
   let bufName="[Zoom]".fnamemodify(bufname('%'), ':t')." ".bufid
