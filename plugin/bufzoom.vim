@@ -1,6 +1,7 @@
 
 "TODO:
 " - Content stack instead of one level. Map ctrl-o/u.
+" - Use undotree for stack instead of copying the buffer
 
 
 "Readme (TODO):
@@ -10,9 +11,9 @@ syn keyword BufZoomPattern containedIn=All
 highlight BufZoomPattern ctermbg=237 ctermfg=254
 
 fun! <SID>doClose()
-  if exists('b:__bufzoom_bufid')
-    let @/ = b:__bufzoom_original_search
-  end
+  "if exists('b:__bufzoom_bufid')
+  "  let @/ = b:__bufzoom_original_search
+  "end
 
   let __bufzoom_goto_buf=b:__bufzoom_bufid
   let id = bufnr('%')
@@ -112,7 +113,7 @@ function! BufZoom(...)
     exec "edit ".bufName
     set modifiable
     let b:__bufzoom_bufid=bufid
-    let b:__bufzoom_original_search = @/
+    "let b:__bufzoom_original_search = @/
     setlocal bufhidden=delete
     call <SID>add_mappings()
     exec "set ft=".l:ft
