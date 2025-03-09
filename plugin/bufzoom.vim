@@ -52,7 +52,7 @@ endf
 
 fun! <SID>update(query)
   set modifiable
-  silent exec "u ".b:__bufzoom_start_undo_seq
+  silent exec "u ".b:__bufzoom_undo_seq
   echo "Zoom: " . a:query
   if a:query != ''
     let patterns = split(a:query, " ")
@@ -80,14 +80,26 @@ fun! s:goto_undo()
   exec "u ".b:__bufzoom_undo_seqs[-(b:__bufzoom_undo_index + 1)]
 endfun
 
+
+fun! <SID>zoom_from_start(query)
+  "silent exec "u ".b:__bufzoom_start_undo_seq
+  set modifiable
+  silent call deletebufline('', 1, '$')
+  silent call setline('.', b:__bufzoom_start_content)
+  call BufZoom(a:query)
+endfun
+
 fun! <SID>add_mappings()
   noremap <buffer> <cr> :call <SID>acceptLine()<cr>
   noremap <buffer> <c-c> :call <SID>quitZoomBuf()<cr>
   noremap <buffer> f :call BufZoom()<cr>
+  noremap <buffer> F :call BufZoom(@/)<cr>
+  noremap <buffer> # *:call BufZoom(@/)<cr><cr>
+  noremap <buffer> * *:call BufZoom(@/)<cr><cr>
   noremap <buffer> q :call <SID>quitZoomBuf()<cr>
   noremap <buffer> u :set modifiable<cr>:undo<cr>:set nomodifiable<cr>
+  noremap <buffer> U :call <SID>zoom_from_start(@/)<cr>
   noremap <buffer> <c-r> :set modifiable<cr>:redo<cr>:set nomodifiable<cr>
-  noremap <buffer> # *:call BufZoom(@/)<cr><cr>
 endfun
 
 
@@ -108,6 +120,8 @@ function! BufZoom(...)
     exec "edit ".bufName
     call setline('.', content)
     call s:add_line_numbers()
+    let b:__bufzoom_start_content = getline(1, '$')
+    let b:__bufzoom_start_undo_seq = undotree().seq_cur
     let b:__bufzoom_undo_index = 0
     let b:__bufzoom_bufid=bufid
     setlocal bufhidden=delete
@@ -126,7 +140,7 @@ function! BufZoom(...)
   endif
 
   let b:__bufzoom_view = view
-  let b:__bufzoom_start_undo_seq = undotree().seq_cur
+  let b:__bufzoom_undo_seq = undotree().seq_cur
 
   let query = get(a:, 1, '')
 
