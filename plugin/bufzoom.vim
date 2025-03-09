@@ -63,8 +63,7 @@ endf
 
 fun! <SID>update(query)
   set modifiable
-  %d
-  call setline('.', b:__bufzoom_content)
+  silent! exec "u ".b:__bufzoom_undo_seqs[-1]
   echo "Zoom: " . a:query
   if a:query != ''
     let patterns = split(a:query, " ")
@@ -92,11 +91,26 @@ fun! <SID>update(query)
 endfun
 
 
+fun! <SID>back()
+  if len(b:__bufzoom_undo_seqs) > 0
+    set modifiable
+    silent! exec "u ".b:__bufzoom_undo_seqs[-1]
+    call remove(b:__bufzoom_undo_seqs, -1)
+    set nomodifiable
+  endif
+
+  if len(b:__bufzoom_undo_seqs) == 0
+    cal <SID>quitZoomBuf()
+    call BufZoom('')
+  endif
+endfun
+
 fun! <SID>add_mappings()
   noremap <buffer> <cr> :call <SID>acceptLine()<cr>
   noremap <buffer> <c-c> :call <SID>quitZoomBuf()<cr>
+  noremap <buffer> f :call BufZoom()<cr>
   noremap <buffer> q :call <SID>quitZoomBuf()<cr>
-  noremap <buffer> u :call <SID>update('')<cr>
+  noremap <buffer> u :call <SID>back()<cr>
   noremap <buffer> # *:call BufZoom(@/)<cr><cr>
 endfun
 
@@ -111,7 +125,8 @@ function! BufZoom(...)
 
   if !exists('b:__bufzoom_bufid')
     exec "edit ".bufName
-    set modifiable
+    call setline('.', content)
+    let b:__bufzoom_undo_seqs = [undotree().seq_cur]
     let b:__bufzoom_bufid=bufid
     "let b:__bufzoom_original_search = @/
     setlocal bufhidden=delete
@@ -126,6 +141,7 @@ function! BufZoom(...)
     endif
   else
     set modifiable
+    call add(b:__bufzoom_undo_seqs, undotree().seq_cur)
     let b:__bufzoom_nested = 1
   endif
 
