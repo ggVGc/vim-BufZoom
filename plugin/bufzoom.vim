@@ -9,10 +9,6 @@ syn keyword BufZoomPattern containedIn=All
 highlight BufZoomPattern ctermbg=237 ctermfg=254
 
 fun! <SID>doClose()
-  "if exists('b:__bufzoom_bufid')
-  "  let @/ = b:__bufzoom_original_search
-  "end
-
   let __bufzoom_goto_buf=b:__bufzoom_bufid
   let id = bufnr('%')
   bprev
@@ -28,7 +24,6 @@ endfun
 fun! <SID>quitZoomBuf()
   let id= <SID>doClose()
   call setpos('.', b:__bufzoom_original_view)
-  "exec "bdelete! ".id
 endfun
 
 fun! <SID>acceptLine()
@@ -36,18 +31,14 @@ fun! <SID>acceptLine()
   let id= <SID>doClose()
   silent exe __bufzoom_linenum
   normal! zt
-  "exec "bdelete! ".id
 endfun
 
-fun! Zoom(searchString, with_numbers)
+fun! Zoom(searchString)
   set modifiable
   " Add extra lines to prevent cutoff of results at end of file
   call append(line('$'), "")
   call append(line('$'), "")
   call append(line('$'), "")
-  "if !a:with_numbers
-  "  silent! %s/^/\=printf('%-7d', line('.')-1)
-  "endif
   silent! exec 'g/'.a:searchString.'/ --,++ s/^/__buf_search_uid/'
   silent! v/__buf_search_uid.*/s/.*//
   silent! g/^$/,/./-j
@@ -65,11 +56,8 @@ fun! <SID>update(query)
   echo "Zoom: " . a:query
   if a:query != ''
     let patterns = split(a:query, " ")
-    let index = 0
     for pattern in patterns
-      let with_numbers = exists('b:__bufzoom_nested') || index > 0
-      let index += 1
-      silent call Zoom(pattern, with_numbers)
+      silent call Zoom(pattern)
     endfor
     match none
 
@@ -122,7 +110,6 @@ function! BufZoom(...)
     call s:add_line_numbers()
     let b:__bufzoom_undo_index = 0
     let b:__bufzoom_bufid=bufid
-    "let b:__bufzoom_original_search = @/
     setlocal bufhidden=delete
     call <SID>add_mappings()
     exec "set ft=".l:ft
