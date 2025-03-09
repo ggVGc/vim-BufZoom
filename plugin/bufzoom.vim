@@ -1,7 +1,6 @@
 
 "TODO:
 " - Content stack instead of one level. Map ctrl-o/u.
-" - Reuse original buffer instead of opening tab (option)
 
 
 "Readme (TODO):
@@ -17,7 +16,7 @@ fun! <SID>doClose()
 
   let __bufzoom_goto_buf=b:__bufzoom_bufid
   let id = bufnr('%')
-  close
+  bprev
   let name = fnameescape(bufname(__bufzoom_goto_buf))
   exec "drop ".name
 
@@ -110,7 +109,7 @@ function! BufZoom(...)
   let ft=&ft
 
   if !exists('b:__bufzoom_bufid')
-    exec "tabnew ".bufName
+    exec "edit ".bufName
     set modifiable
     let b:__bufzoom_bufid=bufid
     let b:__bufzoom_original_search = @/
