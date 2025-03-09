@@ -19,6 +19,7 @@ fun! <SID>doClose()
   let name = fnameescape(bufname(__bufzoom_goto_buf))
   exec "drop ".name
 
+  set modifiable
   return id
 endfun
 
@@ -32,6 +33,7 @@ fun! <SID>acceptLine()
   let __bufzoom_linenum = matchstr(getline("."), "^\\s*\\d\\+")+1
   let id= <SID>doClose()
   silent exe __bufzoom_linenum
+  normal zt
   "exec "bdelete! ".id
 endfun
 
@@ -96,9 +98,9 @@ function! BufZoom(...)
     let b:__bufzoom_bufid=bufid
     let b:__bufzoom_original_search = @/
     setlocal bufhidden=delete
-		if has('nvim')
-			lua vim.diagnostic.enable(false, {bufnr = 0})
-		endif
+    if has('nvim')
+      lua vim.diagnostic.enable(false, {bufnr = 0})
+    endif
 
     call <SID>add_mappings()
 
