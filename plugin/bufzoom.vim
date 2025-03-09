@@ -7,6 +7,8 @@
 "Readme (TODO):
 "- Calling BufZoom in a zoomed buffer reuses the same space.
 
+syn keyword BufZoomPattern containedIn=All
+highlight BufZoomPattern ctermbg=237 ctermfg=254
 
 fun! <SID>doClose()
   if exists('b:__bufzoom_bufid')
@@ -20,6 +22,7 @@ fun! <SID>doClose()
   exec "drop ".name
 
   set modifiable
+  match none
   return id
 endfun
 
@@ -37,9 +40,13 @@ fun! <SID>acceptLine()
   "exec "bdelete! ".id
 endfun
 
-fun! Zoom(searchString)
+fun! Zoom(searchString, nested)
   set modifiable
-  if !exists('b:__bufzoom_nested')
+  " Add extra lines to prevent cutoff of results at end of file
+  call append(line('$'), "")
+  call append(line('$'), "")
+  call append(line('$'), "")
+  if !a:nested
     silent! %s/^/\=printf('%-7d', line('.')-1)
   endif
   silent! exec 'g/'.a:searchString.'/ --,++ s/^/__buf_search_uid/'
@@ -57,21 +64,29 @@ fun! <SID>update(query)
   set modifiable
   %d
   call setline('.', b:__bufzoom_content)
-  " Add extra lines to prevent cutoff of results at end of file
-  call append(line('$'), "")
-  call append(line('$'), "")
-  call append(line('$'), "")
+  echo "Zoom: " . a:query
   if a:query != ''
-    silent call Zoom(a:query)
+    let patterns = split(a:query, " ")
+    let index = 0
+    for pattern in patterns
+      let with_numbers = exists('b:__bufzoom_nested') || index > 0
+      let index += 1
+      silent call Zoom(pattern, with_numbers)
+    endfor
+    match none
+
+    let match_pattern = join(patterns[:-2], "\\|")
+
+    if len(patterns) > 1
+      exec 'match BufZoomPattern /'.match_pattern.'/'
+    endif
     normal gg
+    let @/=patterns[-1]
+    silent! normal n
   else
+    let @/=""
     call setpos('.', b:__bufzoom_position)
   endif
-  echo "Zoom: " . a:query
-  let @/=a:query
-  if a:query != ''
-    silent! normal n
-  end
   redraw!
 endfun
 
@@ -98,14 +113,15 @@ function! BufZoom(...)
     let b:__bufzoom_bufid=bufid
     let b:__bufzoom_original_search = @/
     setlocal bufhidden=delete
-    if has('nvim')
-      lua vim.diagnostic.enable(false, {bufnr = 0})
-    endif
-
     call <SID>add_mappings()
-
     exec "set ft=".l:ft
     set bt=nofile
+
+    if has('nvim')
+      lua vim.diagnostic.enable(false, {bufnr = 0})
+      "TODO: Check for treesitter
+      TSBufDisable highlight
+    endif
   else
     set modifiable
     let b:__bufzoom_nested = 1
