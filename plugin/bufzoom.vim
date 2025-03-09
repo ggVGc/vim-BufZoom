@@ -63,7 +63,7 @@ endf
 
 fun! <SID>update(query)
   set modifiable
-  silent! exec "u ".b:__bufzoom_undo_seqs[-1]
+  call s:goto_undo()
   echo "Zoom: " . a:query
   if a:query != ''
     let patterns = split(a:query, " ")
@@ -85,24 +85,35 @@ fun! <SID>update(query)
     silent! normal! n
   else
     let @/=""
-    call winrestview(b:__bufzoom_view)
+    silent! call winrestview(b:__bufzoom_view)
   endif
   redraw!
 endfun
 
+fun! s:goto_undo()
+  exec "u ".b:__bufzoom_undo_seqs[-(b:__bufzoom_undo_index + 1)]
+endfun
+
 
 fun! <SID>back()
-  if len(b:__bufzoom_undo_seqs) > 0
-    set modifiable
-    silent! exec "u ".b:__bufzoom_undo_seqs[-1]
-    call remove(b:__bufzoom_undo_seqs, -1)
-    set nomodifiable
+  set modifiable
+  if b:__bufzoom_undo_index < len(b:__bufzoom_undo_seqs) - 1
+    let b:__bufzoom_undo_index += 1
   endif
+  call s:goto_undo()
+  set nomodifiable
 
   if len(b:__bufzoom_undo_seqs) == 0
     cal <SID>quitZoomBuf()
-    call BufZoom('')
+    silent! call BufZoom('')
   endif
+endfun
+
+fun! <SID>forward()
+  if b:__bufzoom_undo_index > 0
+    let b:__bufzoom_undo_index -= 1
+  endif
+  call s:goto_undo()
 endfun
 
 fun! <SID>add_mappings()
@@ -111,6 +122,7 @@ fun! <SID>add_mappings()
   noremap <buffer> f :call BufZoom()<cr>
   noremap <buffer> q :call <SID>quitZoomBuf()<cr>
   noremap <buffer> u :call <SID>back()<cr>
+  noremap <buffer> <c-r> :call <SID>forward()<cr>
   noremap <buffer> # *:call BufZoom(@/)<cr><cr>
 endfun
 
@@ -126,6 +138,7 @@ function! BufZoom(...)
   if !exists('b:__bufzoom_bufid')
     exec "edit ".bufName
     call setline('.', content)
+    let b:__bufzoom_undo_index = 0
     let b:__bufzoom_undo_seqs = [undotree().seq_cur]
     let b:__bufzoom_bufid=bufid
     "let b:__bufzoom_original_search = @/
@@ -141,7 +154,6 @@ function! BufZoom(...)
     endif
   else
     set modifiable
-    call add(b:__bufzoom_undo_seqs, undotree().seq_cur)
     let b:__bufzoom_nested = 1
   endif
 
@@ -162,11 +174,13 @@ function! BufZoom(...)
       if !exists('b:__bufzoom_nested')
         call <SID>quitZoomBuf()
       else
+        call add(b:__bufzoom_undo_seqs, undotree().seq_cur)
         set nomodifiable
       end
       break
 
     elseif c == "\<cr>"
+      call add(b:__bufzoom_undo_seqs, undotree().seq_cur)
       set nomodifiable
       break
 
