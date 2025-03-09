@@ -36,7 +36,7 @@ fun! <SID>acceptLine()
   let __bufzoom_linenum = matchstr(getline("."), "^\\s*\\d\\+")+1
   let id= <SID>doClose()
   silent exe __bufzoom_linenum
-  normal zt
+  normal! zt
   "exec "bdelete! ".id
 endfun
 
@@ -53,10 +53,10 @@ fun! Zoom(searchString, nested)
   silent! v/__buf_search_uid.*/s/.*//
   silent! g/^$/,/./-j
   silent! ?.
-  silent! normal jdG
+  silent! normal! jdG
   silent! %s/\(__buf_search_uid\)*//
   silent! %s/^$/-----------------------------------------------------------------------------------------------------------------------------------------------------------/
-  normal ggdd
+  normal! ggdd
   silent! %s/\s*$//g
 endf
 
@@ -80,9 +80,9 @@ fun! <SID>update(query)
     if len(patterns) > 1
       exec 'match BufZoomPattern /'.match_pattern.'/'
     endif
-    normal gg
+    normal! gg
     let @/=patterns[-1]
-    silent! normal n
+    silent! normal! n
   else
     let @/=""
     call winrestview(b:__bufzoom_view)
