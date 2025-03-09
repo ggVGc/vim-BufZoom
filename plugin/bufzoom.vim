@@ -155,7 +155,11 @@ function! BufZoom(...)
       break
 
     elseif keyCode == 23 "CTRL-W
-      let query = ''
+      let patterns = split(query, " ")
+      let query = join(patterns[:-2], " ")
+      if query != ""
+        let query .= " "
+      endif
 
     elseif keyCode is# "\<BS>"
       if query != ''
