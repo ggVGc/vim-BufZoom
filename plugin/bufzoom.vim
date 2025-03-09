@@ -19,7 +19,6 @@ fun! <SID>doClose()
   let name = fnameescape(bufname(__bufzoom_goto_buf))
   exec "drop ".name
 
-
   return id
 endfun
 
@@ -97,6 +96,9 @@ function! BufZoom(...)
     let b:__bufzoom_bufid=bufid
     let b:__bufzoom_original_search = @/
     setlocal bufhidden=delete
+		if has('nvim')
+			lua vim.diagnostic.enable(false, {bufnr = 0})
+		endif
 
     call <SID>add_mappings()
 
