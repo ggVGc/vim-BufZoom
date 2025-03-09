@@ -1,8 +1,6 @@
 
 "TODO:
-" - Content stack instead of one level. Map ctrl-o/u.
-" - Use undotree for stack instead of copying the buffer
-
+" - Check for treesitter before calling TSBufDisable
 
 "Readme (TODO):
 "- Calling BufZoom in a zoomed buffer reuses the same space.
@@ -41,15 +39,15 @@ fun! <SID>acceptLine()
   "exec "bdelete! ".id
 endfun
 
-fun! Zoom(searchString, nested)
+fun! Zoom(searchString, with_numbers)
   set modifiable
   " Add extra lines to prevent cutoff of results at end of file
   call append(line('$'), "")
   call append(line('$'), "")
   call append(line('$'), "")
-  if !a:nested
-    silent! %s/^/\=printf('%-7d', line('.')-1)
-  endif
+  "if !a:with_numbers
+  "  silent! %s/^/\=printf('%-7d', line('.')-1)
+  "endif
   silent! exec 'g/'.a:searchString.'/ --,++ s/^/__buf_search_uid/'
   silent! v/__buf_search_uid.*/s/.*//
   silent! g/^$/,/./-j
@@ -63,7 +61,7 @@ endf
 
 fun! <SID>update(query)
   set modifiable
-  call s:goto_undo()
+  silent exec "u ".b:__bufzoom_start_undo_seq
   echo "Zoom: " . a:query
   if a:query != ''
     let patterns = split(a:query, " ")
@@ -94,36 +92,19 @@ fun! s:goto_undo()
   exec "u ".b:__bufzoom_undo_seqs[-(b:__bufzoom_undo_index + 1)]
 endfun
 
-
-fun! <SID>back()
-  set modifiable
-  if b:__bufzoom_undo_index < len(b:__bufzoom_undo_seqs) - 1
-    let b:__bufzoom_undo_index += 1
-  endif
-  call s:goto_undo()
-  set nomodifiable
-
-  if len(b:__bufzoom_undo_seqs) == 0
-    cal <SID>quitZoomBuf()
-    silent! call BufZoom('')
-  endif
-endfun
-
-fun! <SID>forward()
-  if b:__bufzoom_undo_index > 0
-    let b:__bufzoom_undo_index -= 1
-  endif
-  call s:goto_undo()
-endfun
-
 fun! <SID>add_mappings()
   noremap <buffer> <cr> :call <SID>acceptLine()<cr>
   noremap <buffer> <c-c> :call <SID>quitZoomBuf()<cr>
   noremap <buffer> f :call BufZoom()<cr>
   noremap <buffer> q :call <SID>quitZoomBuf()<cr>
-  noremap <buffer> u :call <SID>back()<cr>
-  noremap <buffer> <c-r> :call <SID>forward()<cr>
+  noremap <buffer> u :set modifiable<cr>:undo<cr>:set nomodifiable<cr>
+  noremap <buffer> <c-r> :set modifiable<cr>:redo<cr>:set nomodifiable<cr>
   noremap <buffer> # *:call BufZoom(@/)<cr><cr>
+endfun
+
+
+fun! s:add_line_numbers()
+  silent! %s/^/\=printf('%-7d', line('.')-1)
 endfun
 
 function! BufZoom(...)
@@ -138,8 +119,8 @@ function! BufZoom(...)
   if !exists('b:__bufzoom_bufid')
     exec "edit ".bufName
     call setline('.', content)
+    call s:add_line_numbers()
     let b:__bufzoom_undo_index = 0
-    let b:__bufzoom_undo_seqs = [undotree().seq_cur]
     let b:__bufzoom_bufid=bufid
     "let b:__bufzoom_original_search = @/
     setlocal bufhidden=delete
@@ -158,8 +139,7 @@ function! BufZoom(...)
   endif
 
   let b:__bufzoom_view = view
-  let b:__bufzoom_content = content
-  call setline('.', content)
+  let b:__bufzoom_start_undo_seq = undotree().seq_cur
 
   let query = get(a:, 1, '')
 
@@ -174,13 +154,11 @@ function! BufZoom(...)
       if !exists('b:__bufzoom_nested')
         call <SID>quitZoomBuf()
       else
-        call add(b:__bufzoom_undo_seqs, undotree().seq_cur)
         set nomodifiable
       end
       break
 
     elseif c == "\<cr>"
-      call add(b:__bufzoom_undo_seqs, undotree().seq_cur)
       set nomodifiable
       break
 
