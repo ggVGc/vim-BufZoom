@@ -29,7 +29,7 @@ endfun
 
 fun! <SID>quitZoomBuf()
   let id= <SID>doClose()
-  call setpos('.', b:__bufzoom_start_pos)
+  call setpos('.', b:__bufzoom_original_view)
   "exec "bdelete! ".id
 endfun
 
@@ -86,7 +86,7 @@ fun! <SID>update(query)
     silent! normal n
   else
     let @/=""
-    call setpos('.', b:__bufzoom_position)
+    call winrestview(b:__bufzoom_view)
   endif
   redraw!
 endfun
@@ -101,8 +101,8 @@ fun! <SID>add_mappings()
 endfun
 
 function! BufZoom(...)
-  let position = getpos('.')
-  let b:__bufzoom_start_pos = position
+  let view = winsaveview()
+  let b:__bufzoom_original_view = view
   let b:__bufzoom_original_modifiable = &modifiable
   let content = getline(1, '$')
   let bufid=bufnr('%')
@@ -129,7 +129,7 @@ function! BufZoom(...)
     let b:__bufzoom_nested = 1
   endif
 
-  let b:__bufzoom_position = position
+  let b:__bufzoom_view = view
   let b:__bufzoom_content = content
   call setline('.', content)
 
