@@ -1,16 +1,17 @@
 
 "TODO:
-" - Prevent undoing to empty buffer
-" - Use record instead of separate __bufzoom variables
-" - Preview:
+" * Prevent undoing to empty buffer
+" * Use record instead of separate __bufzoom variables
+" * Preview:
 "   - Open new tab, make vertical split, jump to file there (nomodifiable).
-" - Auto-preview mode:
+" * Auto-preview mode:
 "   - Previews on every jump to next search (n/N)
-" - Check for treesitter before calling TSBufDisable
-" - Bug:
+" * Check for treesitter before calling TSBufDisable
+" * Bug:
 "   - Open buffer in split
 "   - Use Zoom in right pane
 "   - AccepLine jumps to the left pane
+" * Mode pulling text from all open buffers
 
 "Readme (TODO):
 "- Calling BufZoom in a zoomed buffer reuses the same space.
