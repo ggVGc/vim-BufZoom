@@ -1,12 +1,35 @@
 
 "TODO:
+" - Prevent undoing to empty buffer
+" - Use record instead of separate __bufzoom variables
+" - Preview:
+"   - Open new tab, make vertical split, jump to file there (nomodifiable).
+" - Auto-preview mode:
+"   - Previews on every jump to next search (n/N)
 " - Check for treesitter before calling TSBufDisable
+" - Bug:
+"   - Open buffer in split
+"   - Use Zoom in right pane
+"   - AccepLine jumps to the left pane
 
 "Readme (TODO):
 "- Calling BufZoom in a zoomed buffer reuses the same space.
 
 syn keyword BufZoomPattern containedIn=All
 highlight BufZoomPattern ctermbg=237 ctermfg=254
+
+fun! <SID>add_mappings()
+  noremap <buffer> <cr> :call <SID>acceptLine()<cr>
+  noremap <buffer> <c-c> :call <SID>quitZoomBuf()<cr>
+  noremap <buffer> f :call BufZoom()<cr>
+  noremap <buffer> F :call BufZoom(@/)<cr>
+  noremap <buffer> # *:call BufZoom(@/)<cr><cr>
+  noremap <buffer> * *:call BufZoom(@/)<cr><cr>
+  noremap <buffer> q :call <SID>quitZoomBuf()<cr>
+  noremap <buffer> u :set modifiable<cr>:undo<cr>:set nomodifiable<cr>
+  noremap <buffer> U :call <SID>zoom_from_start(@/)<cr>
+  noremap <buffer> <c-r> :set modifiable<cr>:redo<cr>:set nomodifiable<cr>
+endfun
 
 fun! <SID>doClose()
   let __bufzoom_goto_buf=b:__bufzoom_bufid
@@ -15,7 +38,6 @@ fun! <SID>doClose()
   let name = fnameescape(bufname(__bufzoom_goto_buf))
   exec "drop ".name
 
-  set modifiable
   let &modifiable = b:__bufzoom_original_modifiable
   match none
   return id
@@ -87,19 +109,6 @@ fun! <SID>zoom_from_start(query)
   silent call deletebufline('', 1, '$')
   silent call setline('.', b:__bufzoom_start_content)
   call BufZoom(a:query)
-endfun
-
-fun! <SID>add_mappings()
-  noremap <buffer> <cr> :call <SID>acceptLine()<cr>
-  noremap <buffer> <c-c> :call <SID>quitZoomBuf()<cr>
-  noremap <buffer> f :call BufZoom()<cr>
-  noremap <buffer> F :call BufZoom(@/)<cr>
-  noremap <buffer> # *:call BufZoom(@/)<cr><cr>
-  noremap <buffer> * *:call BufZoom(@/)<cr><cr>
-  noremap <buffer> q :call <SID>quitZoomBuf()<cr>
-  noremap <buffer> u :set modifiable<cr>:undo<cr>:set nomodifiable<cr>
-  noremap <buffer> U :call <SID>zoom_from_start(@/)<cr>
-  noremap <buffer> <c-r> :set modifiable<cr>:redo<cr>:set nomodifiable<cr>
 endfun
 
 
