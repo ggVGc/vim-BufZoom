@@ -1,5 +1,7 @@
 
 "TODO:
+" * Overload yank to copy without line numbers
+" * Restore yank register when exiting
 " * Prevent undoing to empty buffer
 " * Use record instead of separate __bufzoom variables
 " * Preview:
@@ -27,9 +29,9 @@ fun! <SID>add_mappings()
   noremap <buffer> # *:call BufZoom(@/)<cr><cr>
   noremap <buffer> * *:call BufZoom(@/)<cr><cr>
   noremap <buffer> q :call <SID>quitZoomBuf()<cr>
-  noremap <buffer> u :set modifiable<cr>:undo<cr>:set nomodifiable<cr>
   noremap <buffer> U :call <SID>zoom_from_start(@/)<cr>
-  noremap <buffer> <c-r> :set modifiable<cr>:redo<cr>:set nomodifiable<cr>
+  "noremap <buffer> u :set modifiable<cr>:undo<cr>:set nomodifiable<cr>
+  "noremap <buffer> <c-r> :set modifiable<cr>:redo<cr>:set nomodifiable<cr>
 endfun
 
 fun! <SID>doClose()
@@ -39,8 +41,11 @@ fun! <SID>doClose()
   let name = fnameescape(bufname(__bufzoom_goto_buf))
   exec "drop ".name
 
-  let &modifiable = b:__bufzoom_original_modifiable
+	if exists('b:__bufzoom_original_modifiable')
+		let &modifiable = b:__bufzoom_original_modifiable
+	endif
   match none
+  call win_gotoid(b:__bufzoom_window_id)
   return id
 endfun
 
@@ -120,6 +125,7 @@ endfun
 function! BufZoom(...)
   let view = winsaveview()
   let b:__bufzoom_original_view = view
+  let b:__bufzoom_window_id = win_getid()
   let b:__bufzoom_original_modifiable = &modifiable
   let content = getline(1, '$')
   let bufid=bufnr('%')
@@ -128,21 +134,23 @@ function! BufZoom(...)
 
   if !exists('b:__bufzoom_bufid')
     exec "edit ".bufName
+    setlocal buftype=nofile
+    setlocal bufhidden=wipe
+    setlocal noswapfile
+		setlocal nobuflisted
     call setline('.', content)
     call s:add_line_numbers()
     let b:__bufzoom_start_content = getline(1, '$')
     let b:__bufzoom_start_undo_seq = undotree().seq_cur
     let b:__bufzoom_undo_index = 0
     let b:__bufzoom_bufid=bufid
-    setlocal bufhidden=delete
     call <SID>add_mappings()
     exec "set ft=".l:ft
-    set bt=nofile
 
     if has('nvim')
       lua vim.diagnostic.enable(false, {bufnr = 0})
       "TODO: Check for treesitter
-      TSBufDisable highlight
+      silent! TSBufDisable highlight
     endif
   else
     set modifiable
@@ -165,12 +173,12 @@ function! BufZoom(...)
       if !exists('b:__bufzoom_nested')
         call <SID>quitZoomBuf()
       else
-        set nomodifiable
+        "set nomodifiable
       end
       break
 
     elseif c == "\<cr>"
-      set nomodifiable
+      "set nomodifiable
       break
 
     elseif keyCode == 23 "CTRL-W
