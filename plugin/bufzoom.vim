@@ -1,5 +1,6 @@
 
 "TODO:
+" * Put numbers on right side instead, to avoid breaking synax highlighting
 " * Overload yank to copy without line numbers
 " * Restore yank register when exiting
 " * Prevent undoing to empty buffer
