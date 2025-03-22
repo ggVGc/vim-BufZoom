@@ -52,7 +52,7 @@ endfun
 
 fun! <SID>quitZoomBuf()
   let id= <SID>doClose()
-  call setpos('.', b:__bufzoom_original_view)
+  call winrestview(b:__bufzoom_original_view)
 endfun
 
 fun! <SID>acceptLine()
