@@ -22,28 +22,7 @@ syn keyword BufZoomPattern containedIn=All
 highlight BufZoomPattern ctermbg=237 ctermfg=254
 
 if has('nvim')
-  lua << EOF
-    local ns = vim.api.nvim_create_namespace('bufzoom_linenums')
-    function _G.bufzoom_clear_virtual_line_numbers()
-      vim.api.nvim_buf_clear_namespace(vim.api.nvim_get_current_buf(), ns, 0, -1)
-    end
-    function _G.bufzoom_apply_virtual_line_numbers()
-      local bufnr = vim.api.nvim_get_current_buf()
-      vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
-      local first = vim.fn.line('w0') - 1
-      local last = vim.fn.line('w$')
-      local lines = vim.api.nvim_buf_get_lines(bufnr, first, last, false)
-      for row0, line in ipairs(lines) do
-        local num = line:match('^(%d+)')
-        if num then
-          vim.api.nvim_buf_set_extmark(bufnr, ns, first + row0 - 1, 0, {
-            virt_text = {{string.format('%-7s', num), 'LineNr'}},
-            virt_text_pos = 'overlay',
-          })
-        end
-      end
-    end
-EOF
+  let s:bufzoom_ns = nvim_create_namespace('bufzoom_linenums')
 endif
 
 fun! <SID>add_mappings()
@@ -106,7 +85,7 @@ endf
 fun! <SID>update(query)
   set modifiable
   if has('nvim')
-    lua bufzoom_clear_virtual_line_numbers()
+    call s:clear_virtual_line_numbers()
   endif
   silent exec "u ".b:__bufzoom_undo_seq
   echo "Zoom: " . a:query
@@ -153,8 +132,26 @@ fun! s:add_line_numbers()
   silent! %s/^/\=printf('%-7d', line('.')-1)
 endfun
 
+fun! s:clear_virtual_line_numbers()
+  call nvim_buf_clear_namespace(0, s:bufzoom_ns, 0, -1)
+endfun
+
 fun! s:apply_virtual_line_numbers()
-  lua bufzoom_apply_virtual_line_numbers()
+  call nvim_buf_clear_namespace(0, s:bufzoom_ns, 0, -1)
+  let l:first = line('w0') - 1
+  let l:last = line('w$')
+  let l:lines = nvim_buf_get_lines(0, l:first, l:last, v:false)
+  let l:row = l:first
+  for l:line in l:lines
+    let l:num = matchstr(l:line, '^\d\+')
+    if l:num != ''
+      call nvim_buf_set_extmark(0, s:bufzoom_ns, l:row, 0, {
+        \ 'virt_text': [[printf('%-7s', l:num), 'LineNr']],
+        \ 'virt_text_pos': 'overlay'
+        \ })
+    endif
+    let l:row += 1
+  endfor
 endfun
 
 function! BufZoom(...)
