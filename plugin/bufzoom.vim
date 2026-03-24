@@ -21,30 +21,6 @@
 syn keyword BufZoomPattern containedIn=All
 highlight BufZoomPattern ctermbg=237 ctermfg=254
 
-if has('nvim')
-  lua << EOF
-    local ns = vim.api.nvim_create_namespace('bufzoom_linenums')
-    function _G.bufzoom_clear_virtual_line_numbers()
-      vim.api.nvim_buf_clear_namespace(vim.api.nvim_get_current_buf(), ns, 0, -1)
-    end
-    function _G.bufzoom_apply_virtual_line_numbers()
-      local bufnr = vim.api.nvim_get_current_buf()
-      vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
-      local first = vim.fn.line('w0') - 1
-      local last = vim.fn.line('w$')
-      local lines = vim.api.nvim_buf_get_lines(bufnr, first, last, false)
-      for row0, line in ipairs(lines) do
-        local num = line:match('^(%d+)')
-        if num then
-          vim.api.nvim_buf_set_extmark(bufnr, ns, first + row0 - 1, 0, {
-            virt_text = {{string.format('%-7s', num), 'LineNr'}},
-            virt_text_pos = 'overlay',
-          })
-        end
-      end
-    end
-EOF
-endif
 
 fun! <SID>add_mappings()
   noremap <buffer> <cr> :call <SID>accept()<cr>
@@ -55,10 +31,10 @@ fun! <SID>add_mappings()
   noremap <buffer> * *:call BufZoom(@/)<cr><cr>
   noremap <buffer> q :call <SID>quit()<cr>
   noremap <buffer> U :call <SID>zoom_from_start(@/)<cr>
-  noremap <buffer> u :set modifiable<cr>:undo<cr>:set nomodifiable<cr>:call <SID>apply_virtual_line_numbers()<cr>
+  noremap <buffer> u :set modifiable<cr>:undo<cr>:set nomodifiable<cr>
   noremap <buffer> i :call <SID>accept()<cr>i
   noremap <buffer> a :call <SID>accept()<cr>a
-  noremap <buffer> <c-r> :set modifiable<cr>:redo<cr>:set nomodifiable<cr>:call <SID>apply_virtual_line_numbers()<cr>
+  noremap <buffer> <c-r> :set modifiable<cr>:redo<cr>:set nomodifiable<cr>
 endfun
 
 fun! <SID>close()
@@ -71,6 +47,7 @@ fun! <SID>close()
   let &modifiable = original_modifiable
   let &buflisted = original_buflisted
   match none
+  3match none
 endfun
 
 fun! <SID>quit()
@@ -105,9 +82,6 @@ endf
 
 fun! <SID>update(query)
   set modifiable
-  if has('nvim')
-    lua bufzoom_clear_virtual_line_numbers()
-  endif
   silent exec "u ".b:__bufzoom_undo_seq
   echo "Zoom: " . a:query
   if a:query != ''
@@ -129,9 +103,6 @@ fun! <SID>update(query)
     let @/=""
     silent! call winrestview(b:__bufzoom_view)
   endif
-  if has('nvim')
-    call s:apply_virtual_line_numbers()
-  endif
   redraw!
 endfun
 
@@ -151,10 +122,6 @@ endfun
 
 fun! s:add_line_numbers()
   silent! %s/^/\=printf('%-7d', line('.')-1)
-endfun
-
-fun! s:apply_virtual_line_numbers()
-  lua bufzoom_apply_virtual_line_numbers()
 endfun
 
 function! BufZoom(...)
@@ -183,6 +150,7 @@ function! BufZoom(...)
     setlocal nobuflisted
     call setline('.', content)
     call s:add_line_numbers()
+    3match LineNr /^\d\+\s*/
     let b:__bufzoom_start_content = getline(1, '$')
     let b:__bufzoom_start_undo_seq = undotree().seq_cur
     let b:__bufzoom_undo_index = 0
