@@ -21,6 +21,31 @@
 syn keyword BufZoomPattern containedIn=All
 highlight BufZoomPattern ctermbg=237 ctermfg=254
 
+if has('nvim')
+  lua << EOF
+    local ns = vim.api.nvim_create_namespace('bufzoom_linenums')
+    function _G.bufzoom_clear_virtual_line_numbers()
+      vim.api.nvim_buf_clear_namespace(vim.api.nvim_get_current_buf(), ns, 0, -1)
+    end
+    function _G.bufzoom_apply_virtual_line_numbers()
+      local bufnr = vim.api.nvim_get_current_buf()
+      vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+      local first = vim.fn.line('w0') - 1
+      local last = vim.fn.line('w$')
+      local lines = vim.api.nvim_buf_get_lines(bufnr, first, last, false)
+      for row0, line in ipairs(lines) do
+        local num = line:match('^(%d+)')
+        if num then
+          vim.api.nvim_buf_set_extmark(bufnr, ns, first + row0 - 1, 0, {
+            virt_text = {{string.format('%-7s', num), 'LineNr'}},
+            virt_text_pos = 'overlay',
+          })
+        end
+      end
+    end
+EOF
+endif
+
 fun! <SID>add_mappings()
   noremap <buffer> <cr> :call <SID>accept()<cr>
   noremap <buffer> <c-c> :call <SID>quit()<cr>
@@ -80,6 +105,9 @@ endf
 
 fun! <SID>update(query)
   set modifiable
+  if has('nvim')
+    lua bufzoom_clear_virtual_line_numbers()
+  endif
   silent exec "u ".b:__bufzoom_undo_seq
   echo "Zoom: " . a:query
   if a:query != ''
@@ -126,25 +154,7 @@ fun! s:add_line_numbers()
 endfun
 
 fun! s:apply_virtual_line_numbers()
-  lua << EOF
-    local ns = vim.api.nvim_create_namespace('bufzoom_linenums')
-    local bufnr = vim.api.nvim_get_current_buf()
-    vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
-    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-    for row0, line in ipairs(lines) do
-      local row = row0 - 1
-      local num, spaces = line:match('^(%d+)(%s*)')
-      if num then
-        local prefix_end = #num + #spaces
-        vim.api.nvim_buf_set_extmark(bufnr, ns, row, 0, {
-          end_col = prefix_end,
-          conceal = '',
-          virt_text = {{num, 'LineNr'}},
-          virt_text_pos = 'inline',
-        })
-      end
-    end
-EOF
+  lua bufzoom_apply_virtual_line_numbers()
 endfun
 
 function! BufZoom(...)
@@ -183,8 +193,6 @@ function! BufZoom(...)
       lua vim.diagnostic.enable(false, {bufnr = 0})
       "TODO: Check for treesitter
       silent! TSBufDisable highlight
-      setlocal conceallevel=3
-      setlocal concealcursor=nvic
     endif
   else
     set modifiable
