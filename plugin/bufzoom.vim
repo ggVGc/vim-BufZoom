@@ -47,7 +47,7 @@ fun! <SID>close()
   let &modifiable = original_modifiable
   let &buflisted = original_buflisted
   match none
-  3match none
+  2match none
 endfun
 
 fun! <SID>quit()
@@ -150,7 +150,7 @@ function! BufZoom(...)
     setlocal nobuflisted
     call setline('.', content)
     call s:add_line_numbers()
-    3match LineNr /^\d\+\s*/
+    2match LineNr /^\d\+\s*/
     let b:__bufzoom_start_content = getline(1, '$')
     let b:__bufzoom_start_undo_seq = undotree().seq_cur
     let b:__bufzoom_undo_index = 0
