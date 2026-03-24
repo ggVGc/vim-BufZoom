@@ -1,6 +1,7 @@
 
 "TODO:
 " * BUG: Restore yank register when exiting
+" * Put numbers on right side instead, to avoid breaking synax highlighting
 " * Zoom only in current window view:
 "   - Floating
 "   - Down/Up, like sneak/leap
