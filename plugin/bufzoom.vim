@@ -1,7 +1,10 @@
 
 "TODO:
+" * BUG: Restore yank register when exiting
+" * Zoom only in current window view:
+"   - Floating
+"   - Down/Up, like sneak/leap
 " * Overload yank to copy without line numbers
-" * Restore yank register when exiting
 " * Prevent undoing to empty buffer
 " * Use record instead of separate __bufzoom variables
 " * Preview:
@@ -9,10 +12,6 @@
 " * Auto-preview mode:
 "   - Previews on every jump to next search (n/N)
 " * Check for treesitter before calling TSBufDisable
-" * Bug:
-"   - Open buffer in split
-"   - Use Zoom in right pane
-"   - AccepLine jumps to the left pane
 " * Mode pulling text from all open buffers
 
 "Readme (TODO):
@@ -22,41 +21,41 @@ syn keyword BufZoomPattern containedIn=All
 highlight BufZoomPattern ctermbg=237 ctermfg=254
 
 fun! <SID>add_mappings()
-  noremap <buffer> <cr> :call <SID>acceptLine()<cr>
-  noremap <buffer> <c-c> :call <SID>quitZoomBuf()<cr>
+  noremap <buffer> <cr> :call <SID>accept()<cr>
+  noremap <buffer> <c-c> :call <SID>quit()<cr>
   noremap <buffer> f :call BufZoom()<cr>
   noremap <buffer> F :call BufZoom(@/)<cr>
   noremap <buffer> # *:call BufZoom(@/)<cr><cr>
   noremap <buffer> * *:call BufZoom(@/)<cr><cr>
-  noremap <buffer> q :call <SID>quitZoomBuf()<cr>
+  noremap <buffer> q :call <SID>quit()<cr>
   noremap <buffer> U :call <SID>zoom_from_start(@/)<cr>
-  "noremap <buffer> u :set modifiable<cr>:undo<cr>:set nomodifiable<cr>
-  "noremap <buffer> <c-r> :set modifiable<cr>:redo<cr>:set nomodifiable<cr>
+  noremap <buffer> u :set modifiable<cr>:undo<cr>:set nomodifiable<cr>
+  noremap <buffer> i :call <SID>accept()<cr>i
+  noremap <buffer> a :call <SID>accept()<cr>a
+  noremap <buffer> <c-r> :set modifiable<cr>:redo<cr>:set nomodifiable<cr>
 endfun
 
-fun! <SID>doClose()
-  let __bufzoom_goto_buf=b:__bufzoom_bufid
-  let id = bufnr('%')
-  bprev
-  let name = fnameescape(bufname(__bufzoom_goto_buf))
-  exec "drop ".name
+fun! <SID>close()
+  let original_modifiable = b:__bufzoom_original_modifiable
+  let original_buflisted = b:__bufzoom_original_buflisted
 
-	if exists('b:__bufzoom_original_modifiable')
-		let &modifiable = b:__bufzoom_original_modifiable
-	endif
+  let name = fnameescape(bufname(b:__bufzoom_original_buffer_id))
+  exec "buffer ".name
+
+  let &modifiable = original_modifiable
+  let &buflisted = original_buflisted
   match none
-  call win_gotoid(b:__bufzoom_window_id)
-  return id
 endfun
 
-fun! <SID>quitZoomBuf()
-  let id= <SID>doClose()
-  call setpos('.', b:__bufzoom_original_view)
+fun! <SID>quit()
+  let view = b:__bufzoom_original_view
+  call <SID>close()
+  call setpos('.', view)
 endfun
 
-fun! <SID>acceptLine()
+fun! <SID>accept()
   let __bufzoom_linenum = matchstr(getline("."), "^\\s*\\d\\+")+1
-  let id= <SID>doClose()
+  call <SID>close()
   silent exe __bufzoom_linenum
   normal! zt
 endfun
@@ -123,27 +122,34 @@ fun! s:add_line_numbers()
 endfun
 
 function! BufZoom(...)
-  let view = winsaveview()
-  let b:__bufzoom_original_view = view
-  let b:__bufzoom_window_id = win_getid()
-  let b:__bufzoom_original_modifiable = &modifiable
-  let content = getline(1, '$')
-  let bufid=bufnr('%')
-  let bufName="[Zoom]".fnamemodify(bufname('%'), ':t')." ".bufid
-  let ft=&ft
+  if !exists('b:__bufzoom_original_buffer_id')
+    let ft=&ft
+    let view = winsaveview()
+    let content = getline(1, '$')
+    let bufid=bufnr('%')
 
-  if !exists('b:__bufzoom_bufid')
+    let bufName="[Zoom]".fnamemodify(bufname('%'), ':t')." ".bufid
+    let original_modifiable = &modifiable
+    let original_buflisted = &buflisted
+    set buflisted
+
     exec "edit ".bufName
+    let b:__bufzoom_original_modifiable = original_modifiable
+    let b:__bufzoom_original_buflisted = original_buflisted
+    let b:__bufzoom_original_view = view
+    let b:__bufzoom_original_buffer_id = bufid
+
+    set modifiable
+    set noreadonly
     setlocal buftype=nofile
     setlocal bufhidden=wipe
     setlocal noswapfile
-		setlocal nobuflisted
+    setlocal nobuflisted
     call setline('.', content)
     call s:add_line_numbers()
     let b:__bufzoom_start_content = getline(1, '$')
     let b:__bufzoom_start_undo_seq = undotree().seq_cur
     let b:__bufzoom_undo_index = 0
-    let b:__bufzoom_bufid=bufid
     call <SID>add_mappings()
     exec "set ft=".l:ft
 
@@ -157,7 +163,6 @@ function! BufZoom(...)
     let b:__bufzoom_nested = 1
   endif
 
-  let b:__bufzoom_view = view
   let b:__bufzoom_undo_seq = undotree().seq_cur
 
   let query = get(a:, 1, '')
@@ -171,14 +176,14 @@ function! BufZoom(...)
 
     if c == "\<esc>"
       if !exists('b:__bufzoom_nested')
-        call <SID>quitZoomBuf()
+        call <SID>quit()
       else
-        "set nomodifiable
+        set nomodifiable
       end
       break
 
     elseif c == "\<cr>"
-      "set nomodifiable
+      set nomodifiable
       break
 
     elseif keyCode == 23 "CTRL-W
