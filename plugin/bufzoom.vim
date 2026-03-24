@@ -21,6 +21,7 @@
 syn keyword BufZoomPattern containedIn=All
 highlight BufZoomPattern ctermbg=237 ctermfg=254
 
+
 fun! <SID>add_mappings()
   noremap <buffer> <cr> :call <SID>accept()<cr>
   noremap <buffer> <c-c> :call <SID>quit()<cr>
@@ -46,6 +47,7 @@ fun! <SID>close()
   let &modifiable = original_modifiable
   let &buflisted = original_buflisted
   match none
+  2match none
 endfun
 
 fun! <SID>quit()
@@ -148,6 +150,7 @@ function! BufZoom(...)
     setlocal nobuflisted
     call setline('.', content)
     call s:add_line_numbers()
+    2match LineNr /^\d\+\s*/
     let b:__bufzoom_start_content = getline(1, '$')
     let b:__bufzoom_start_undo_seq = undotree().seq_cur
     let b:__bufzoom_undo_index = 0
