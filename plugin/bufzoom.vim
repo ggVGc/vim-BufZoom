@@ -30,10 +30,10 @@ fun! <SID>add_mappings()
   noremap <buffer> * *:call BufZoom(@/)<cr><cr>
   noremap <buffer> q :call <SID>quit()<cr>
   noremap <buffer> U :call <SID>zoom_from_start(@/)<cr>
-  noremap <buffer> u :set modifiable<cr>:undo<cr>:set nomodifiable<cr>
+  noremap <buffer> u :set modifiable<cr>:undo<cr>:set nomodifiable<cr>:call <SID>apply_virtual_line_numbers()<cr>
   noremap <buffer> i :call <SID>accept()<cr>i
   noremap <buffer> a :call <SID>accept()<cr>a
-  noremap <buffer> <c-r> :set modifiable<cr>:redo<cr>:set nomodifiable<cr>
+  noremap <buffer> <c-r> :set modifiable<cr>:redo<cr>:set nomodifiable<cr>:call <SID>apply_virtual_line_numbers()<cr>
 endfun
 
 fun! <SID>close()
@@ -101,6 +101,9 @@ fun! <SID>update(query)
     let @/=""
     silent! call winrestview(b:__bufzoom_view)
   endif
+  if has('nvim')
+    call s:apply_virtual_line_numbers()
+  endif
   redraw!
 endfun
 
@@ -120,6 +123,28 @@ endfun
 
 fun! s:add_line_numbers()
   silent! %s/^/\=printf('%-7d', line('.')-1)
+endfun
+
+fun! s:apply_virtual_line_numbers()
+  lua << EOF
+    local ns = vim.api.nvim_create_namespace('bufzoom_linenums')
+    local bufnr = vim.api.nvim_get_current_buf()
+    vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    for row0, line in ipairs(lines) do
+      local row = row0 - 1
+      local num, spaces = line:match('^(%d+)(%s*)')
+      if num then
+        local prefix_end = #num + #spaces
+        vim.api.nvim_buf_set_extmark(bufnr, ns, row, 0, {
+          end_col = prefix_end,
+          conceal = '',
+          virt_text = {{num, 'LineNr'}},
+          virt_text_pos = 'inline',
+        })
+      end
+    end
+EOF
 endfun
 
 function! BufZoom(...)
@@ -158,6 +183,8 @@ function! BufZoom(...)
       lua vim.diagnostic.enable(false, {bufnr = 0})
       "TODO: Check for treesitter
       silent! TSBufDisable highlight
+      setlocal conceallevel=3
+      setlocal concealcursor=nvic
     endif
   else
     set modifiable
